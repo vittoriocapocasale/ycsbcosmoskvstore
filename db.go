@@ -114,15 +114,19 @@ func (db *kvStore) CleanupThread(ctx context.Context) {
 }
 
 func (db *kvStore) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	<-db.freeSlots
-	conn := <-db.grpcs
 	account := <-db.accounts
 	msgs := make([]sdk.Msg, len(fields))
 	for i := 0; i < len(fields); i++ {
 		msg := types.NewMsgReadKey(account.GetAddress(), table+key+fields[i])
 		msgs[i] = msg
 	}
-	err := BuildSignBroadcast("test-chain-95APpL", account, conn, msgs)
+	bytes, err := BuildSign("test-chain-95APpL", account, msgs)
+	if err != nil {
+		panic(err)
+	}
+	<-db.freeSlots
+	conn := <-db.grpcs
+	err = SendBytesAsync(conn, bytes)
 	if err != nil {
 		panic(err)
 	}
@@ -137,17 +141,22 @@ func (db *kvStore) Scan(ctx context.Context, table string, startKey string, coun
 }
 
 func (db *kvStore) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	<-db.freeSlots
-	conn := <-db.grpcs
 	account := <-db.accounts
 	msgs := make([]sdk.Msg, len(values))
 	i := 0
 	for k, v := range values {
-		msg := types.NewMsgWriteKey(account.GetAddress(), table+key+k, hex.EncodeToString(v))
+		s := hex.EncodeToString(v)
+		msg := types.NewMsgWriteKey(account.GetAddress(), table+key+k, s[0:len(s)/2])
 		msgs[i] = msg
 		i++
 	}
-	err := BuildSignBroadcast("test-chain-95APpL", account, conn, msgs)
+	bytes, err := BuildSign("test-chain-95APpL", account, msgs)
+	if err != nil {
+		panic(err)
+	}
+	<-db.freeSlots
+	conn := <-db.grpcs
+	err = SendBytesAsync(conn, bytes)
 	if err != nil {
 		panic(err)
 	}
@@ -158,17 +167,22 @@ func (db *kvStore) Update(ctx context.Context, table string, key string, values 
 }
 
 func (db *kvStore) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
-	<-db.freeSlots
-	conn := <-db.grpcs
 	account := <-db.accounts
 	msgs := make([]sdk.Msg, len(values))
 	i := 0
 	for k, v := range values {
-		msg := types.NewMsgWriteKey(account.GetAddress(), table+key+k, hex.EncodeToString(v))
+		s := hex.EncodeToString(v)
+		msg := types.NewMsgWriteKey(account.GetAddress(), table+key+k, s[0:len(s)/2])
 		msgs[i] = msg
 		i++
 	}
-	err := BuildSignBroadcast("test-chain-95APpL", account, conn, msgs)
+	bytes, err := BuildSign("test-chain-95APpL", account, msgs)
+	if err != nil {
+		panic(err)
+	}
+	<-db.freeSlots
+	conn := <-db.grpcs
+	err = SendBytesAsync(conn, bytes)
 	if err != nil {
 		panic(err)
 	}
@@ -179,11 +193,15 @@ func (db *kvStore) Insert(ctx context.Context, table string, key string, values 
 }
 
 func (db *kvStore) Delete(ctx context.Context, table string, key string) error {
-	<-db.freeSlots
-	conn := <-db.grpcs
 	account := <-db.accounts
 	msg := types.NewMsgDeleteKey(account.GetAddress(), table+key)
-	err := BuildSignBroadcast("test-chain-95APpL", account, conn, []sdk.Msg{msg})
+	bytes, err := BuildSign("test-chain-95APpL", account, []sdk.Msg{msg})
+	if err != nil {
+		panic(err)
+	}
+	<-db.freeSlots
+	conn := <-db.grpcs
+	err = SendBytesAsync(conn, bytes)
 	if err != nil {
 		panic(err)
 	}

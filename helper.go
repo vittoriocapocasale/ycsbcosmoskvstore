@@ -262,6 +262,35 @@ func SendTransactionAsync(conn *grpc.ClientConn, txConfig *client.TxConfig, txBu
 	return nil
 }
 
+func BuildSign(chainID string, acc *Account, msgs []sdk.Msg) ([]byte, error) {
+	txConfig := PrepareTransaction()
+	txBuilder, err := BuildTransaction(txConfig, msgs)
+	if err != nil {
+		return nil, err
+	}
+	err = SignTransaction(chainID, acc, txConfig, txBuilder)
+	if err != nil {
+		return nil, err
+	}
+	txBytes, err := (*txConfig).TxEncoder()((*txBuilder).GetTx())
+	if err != nil {
+		return nil, err
+	}
+	return txBytes, nil
+}
+
+func SendBytesAsync(conn *grpc.ClientConn, txBytes []byte) error {
+	client := tx.NewServiceClient(conn)
+	_, err := client.BroadcastTx(context.Background(), &tx.BroadcastTxRequest{
+		Mode:    tx.BroadcastMode_BROADCAST_MODE_ASYNC,
+		TxBytes: txBytes, // Proto-binary of the signed transaction, see previous step.
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type MyHandler struct{}
 
 func NewMyHandler() *MyHandler {
