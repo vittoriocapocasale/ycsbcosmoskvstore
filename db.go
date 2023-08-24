@@ -82,7 +82,7 @@ func (kvCretor) Create(p *properties.Properties) (ycsb.DB, error) {
 	if tmConn == nil {
 		return nil, errors.New("connection failed")
 	}
-	store := &kvStore{freeSlots: freeSlots, accounts: accounts, grpcs: grpcs, conn: tmConn}
+	store := &kvStore{freeSlots: freeSlots, accounts: accounts, grpcs: grpcs, conn: tmConn, memSize: memPoolSize}
 	err = tmConn.BlockSubscribe(store)
 	if err != nil {
 		return nil, err
@@ -95,6 +95,7 @@ type kvStore struct {
 	accounts  chan *Account
 	grpcs     chan *grpc.ClientConn
 	conn      *TMConn
+	memSize   int
 }
 
 func (db *kvStore) Handle(msg []byte) {
@@ -212,6 +213,9 @@ func (db *kvStore) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (db *kvStore) Close() error {
+	for i := 0; i < db.memSize; i++ {
+		<-db.freeSlots
+	}
 	db.conn.Close()
 	close(db.grpcs)
 	for conn := range db.grpcs {
