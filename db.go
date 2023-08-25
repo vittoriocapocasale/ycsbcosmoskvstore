@@ -82,7 +82,7 @@ func (kvCretor) Create(p *properties.Properties) (ycsb.DB, error) {
 	if tmConn == nil {
 		return nil, errors.New("connection failed")
 	}
-	store := &kvStore{freeSlots: freeSlots, accounts: accounts, grpcs: grpcs, conn: tmConn, memSize: memPoolSize}
+	store := &kvStore{freeSlots: freeSlots, accounts: accounts, grpcs: grpcs, conn: tmConn, closing: make(chan bool, 1), noTxs: make(chan bool, 5)}
 	err = tmConn.BlockSubscribe(store)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,8 @@ type kvStore struct {
 	accounts  chan *Account
 	grpcs     chan *grpc.ClientConn
 	conn      *TMConn
-	memSize   int
+	closing   chan bool
+	noTxs     chan bool
 }
 
 func (db *kvStore) Handle(msg []byte) {
@@ -104,6 +105,15 @@ func (db *kvStore) Handle(msg []byte) {
 	//result>data>value>block>data>txs
 	for i := 0; i < len(resp.Result.Data.Value.Block.Data.Txs); i++ {
 		db.freeSlots <- true
+	}
+	select {
+	case end := <-db.closing:
+		db.closing <- end
+		if len(resp.Result.Data.Value.Block.Data.Txs) == 0 {
+			db.noTxs <- end
+		}
+	default:
+		return
 	}
 }
 
@@ -213,9 +223,12 @@ func (db *kvStore) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (db *kvStore) Close() error {
-	for i := 0; i < db.memSize; i++ {
-		<-db.freeSlots
-	}
+	db.closing <- true
+	<-db.noTxs
+	<-db.noTxs
+	<-db.noTxs
+	<-db.noTxs
+	<-db.noTxs
 	db.conn.Close()
 	close(db.grpcs)
 	for conn := range db.grpcs {

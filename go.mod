@@ -17,6 +17,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.55.0
 	gopkg.in/yaml.v2 v2.4.0
+	github.com/recws-org/recws v1.4.0
 )
 
 require (
@@ -62,6 +63,7 @@ require (
 	github.com/hdevalence/ed25519consensus v0.0.0-20210204194344-59a8610d2b87 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
+	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/keybase/go-keychain v0.0.0-20190712205309-48d3d31d256d // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
