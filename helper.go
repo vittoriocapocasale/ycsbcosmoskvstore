@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/cosmos/btcutil/bech32"
-	websocket "github.com/recws-org/recws"
+	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -307,7 +307,7 @@ type Handler interface {
 type TMConn struct {
 	hostnport string
 	path      string
-	conn      *websocket.RecConn
+	conn      *websocket.Conn
 	done      chan struct{}
 	handler   Handler
 }
@@ -324,11 +324,11 @@ func NewTMConnect(hostnport string, path string) *TMConn {
 func (tm *TMConn) connect() error {
 	//tcp://0.0.0.0:26657/websocket
 	link := url.URL{Scheme: "ws", Host: tm.hostnport, Path: tm.path}
-	ws := websocket.RecConn{
-		KeepAliveTimeout: 5 * time.Second,
+	ws, _, err := websocket.DefaultDialer.Dial(link.String(), nil)
+	if err != nil {
+		panic("Failed to connect")
 	}
-	ws.Dial(link.String(), nil)
-	tm.conn = &ws
+	tm.conn = ws
 	return nil
 }
 
